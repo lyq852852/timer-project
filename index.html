@@ -569,6 +569,68 @@
         color: var(--text);
       }
 
+      /* Install PWA Banner */
+      .install-pwa-banner {
+        display: none;
+        position: fixed;
+        bottom: 24px;
+        left: 16px;
+        right: 16px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        z-index: 10000;
+        animation: slideUp 0.3s ease;
+      }
+      .install-pwa-banner.visible {
+        display: block;
+      }
+      @keyframes slideUp {
+        from { transform: translateY(100px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      .install-pwa-banner p {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+      }
+      .install-pwa-banner .banner-btns {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      .install-pwa-banner .btn-install {
+        background: var(--accent);
+        color: var(--bg);
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .install-pwa-banner .btn-install:hover {
+        background: var(--accent-hover);
+      }
+      .install-pwa-banner .btn-install:active {
+        transform: scale(0.98);
+      }
+      .install-pwa-banner .btn-dismiss-install {
+        background: transparent;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: color 0.2s;
+      }
+      .install-pwa-banner .btn-dismiss-install:hover {
+        color: var(--text);
+      }
+
       /* Responsive */
       @media (max-width: 480px) {
         .container { padding: 16px; }
@@ -690,6 +752,15 @@
     </div>
 
     <!-- PWA Update Toast -->
+    <!-- Install PWA Banner -->
+    <div class="install-pwa-banner" id="installPWABanner">
+      <p>把计时器添加到桌面，方便快速访问</p>
+      <div class="banner-btns">
+        <button class="btn-dismiss-install" onclick="dismissInstallBanner()">暂不需要</button>
+        <button class="btn-install" onclick="installPWA()">立即安装</button>
+      </div>
+    </div>
+
     <div class="pwa-update-toast" id="pwaUpdateToast">
       <p>有新版本可用，更新以获得最佳体验</p>
       <div class="banner-btns">
@@ -1076,6 +1147,44 @@
         } else {
           document.exitFullscreen().catch(() => {});
         }
+      }
+
+      // --- PWA Install Button ---
+      let deferredPrompt = null;
+      const installBanner = document.getElementById('installPWABanner');
+      const installBannerDismissed = localStorage.getItem('installBannerDismissed');
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        if (!installBannerDismissed) {
+          setTimeout(() => {
+            installBanner.classList.add('visible');
+          }, 3000);
+        }
+      });
+
+      window.addEventListener('appinstalled', () => {
+        installBanner.classList.remove('visible');
+        deferredPrompt = null;
+        localStorage.setItem('installBannerDismissed', 'true');
+      });
+
+      function installPWA() {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the A2HS prompt');
+            }
+            deferredPrompt = null;
+          });
+        }
+      }
+
+      function dismissInstallBanner() {
+        installBanner.classList.remove('visible');
+        localStorage.setItem('installBannerDismissed', 'true');
       }
 
       // --- Init ---
