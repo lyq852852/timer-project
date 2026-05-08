@@ -1340,7 +1340,7 @@
           digitalDisplay.style.display = 'none';
           analogDisplay.classList.add('active');
           if (label) label.style.display = 'none';
-          updateAnalogClock(type, type === 'stopwatch' ? elapsedMs : countdownTotalMs - countdownRemainingMs);
+          updateAnalogClock(type, type === 'stopwatch' ? elapsedMs : Math.max(0, countdownTotalMs - elapsedMs));
         }
       }
 
