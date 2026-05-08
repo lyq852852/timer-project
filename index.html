@@ -742,15 +742,6 @@
       <button class="btn btn-danger" onclick="dismissFinished()">确定</button>
     </div>
 
-    <!-- PWA Install Banner -->
-    <div class="pwa-install-banner" id="pwaInstallBanner">
-      <p>添加到主屏幕，无需下载即可像 App 一样快速打开</p>
-      <div class="banner-btns">
-        <button class="btn-dismiss" onclick="dismissPWAInstall()">暂不</button>
-        <button class="btn-install" onclick="installPWA()">安装</button>
-      </div>
-    </div>
-
     <!-- PWA Update Toast -->
     <!-- Install PWA Banner -->
     <div class="install-pwa-banner" id="installPWABanner">
@@ -800,42 +791,6 @@
       const finishedSub = document.getElementById('finishedSub');
 
       const CIRCUMFERENCE = 2 * Math.PI * 130; // ~816.81
-
-      // --- PWA Install Banner ---
-      let deferredPrompt = null;
-
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        // 延迟显示，避免打扰首次使用
-        setTimeout(() => {
-          const dismissed = localStorage.getItem('pwa-install-dismissed');
-          if (!dismissed) {
-            document.getElementById('pwaInstallBanner').classList.add('visible');
-          }
-        }, 5000);
-      });
-
-      window.addEventListener('appinstalled', () => {
-        document.getElementById('pwaInstallBanner').classList.remove('visible');
-        deferredPrompt = null;
-      });
-
-      function installPWA() {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choice) => {
-          if (choice.outcome === 'accepted') {
-            document.getElementById('pwaInstallBanner').classList.remove('visible');
-          }
-          deferredPrompt = null;
-        });
-      }
-
-      function dismissPWAInstall() {
-        document.getElementById('pwaInstallBanner').classList.remove('visible');
-        localStorage.setItem('pwa-install-dismissed', '1');
-      }
 
       // --- PWA Update ---
       let swUpdate = false;
