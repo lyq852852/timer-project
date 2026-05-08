@@ -51,6 +51,12 @@
         user-select: none;
       }
 
+      /* Mobile touch optimization */
+      .btn, .preset-btn, .mode-tab, .time-input {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
       .container {
         width: 100%;
         max-width: 720px;
@@ -582,17 +588,17 @@
       <div class="countdown-setup" id="countdownSetup">
         <div class="time-input-group">
           <label>时</label>
-          <input type="number" class="time-input" id="inputHours" min="0" max="99" value="0" />
+          <input type="number" class="time-input" id="inputHours" min="0" max="99" value="0" inputmode="numeric" />
         </div>
         <span class="time-separator">:</span>
         <div class="time-input-group">
           <label>分</label>
-          <input type="number" class="time-input" id="inputMinutes" min="0" max="59" value="5" />
+          <input type="number" class="time-input" id="inputMinutes" min="0" max="59" value="5" inputmode="numeric" />
         </div>
         <span class="time-separator">:</span>
         <div class="time-input-group">
           <label>秒</label>
-          <input type="number" class="time-input" id="inputSeconds" min="0" max="59" value="0" />
+          <input type="number" class="time-input" id="inputSeconds" min="0" max="59" value="0" inputmode="numeric" />
         </div>
       </div>
 
