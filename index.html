@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>计时器</title>
+
+    <!-- PWA Meta -->
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="简洁美观的正计时与倒计时工具，支持全屏、计次和闹钟提醒" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="计时器" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #0f172a;
+        --bg-card: #1e293b;
+        --bg-input: #334155;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+        --accent: #38bdf8;
+        --accent-hover: #7dd3fc;
+        --danger: #f87171;
+        --danger-hover: #fca5a5;
+        --success: #4ade80;
+        --warning: #fbbf24;
+        --border: #475569;
+        --radius: 12px;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 720px;
+        padding: 24px;
+      }
+
+      /* Mode Tabs */
+      .mode-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 32px;
+        background: var(--bg-card);
+        border-radius: var(--radius);
+        padding: 4px;
+      }
+
+      .mode-tab {
+        flex: 1;
+        padding: 12px 0;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.25s ease;
+      }
+
+      .mode-tab.active {
+        background: var(--accent);
+        color: var(--bg);
+      }
+
+      .mode-tab:not(.active):hover {
+        color: var(--text);
+        background: var(--bg-input);
+      }
+
+      /* Time Display */
+      .time-display-wrapper {
+        text-align: center;
+        margin-bottom: 36px;
+        position: relative;
+      }
+
+      .time-display {
+        font-size: clamp(56px, 12vw, 96px);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 2px;
+        color: var(--text);
+        line-height: 1.1;
+        transition: color 0.3s ease;
+      }
+
+      .time-display.danger {
+        color: var(--danger);
+        animation: pulse 1s ease-in-out infinite;
+      }
+
+      .time-display.paused {
+        opacity: 0.5;
+      }
+
+      .time-label {
+        font-size: 14px;
+        color: var(--text-muted);
+        margin-top: 8px;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+
+      /* Countdown Input */
+      .countdown-setup {
+        display: none;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 32px;
+      }
+
+      .countdown-setup.visible {
+        display: flex;
+      }
+
+      .time-input-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .time-input-group label {
+        font-size: 12px;
+        color: var(--text-muted);
+        letter-spacing: 1px;
+      }
+
+      .time-input {
+        width: 80px;
+        padding: 12px 8px;
+        text-align: center;
+        font-size: 28px;
+        font-weight: 600;
+        background: var(--bg-input);
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.2s ease;
+        -moz-appearance: textfield;
+      }
+
+      .time-input::-webkit-outer-spin-button,
+      .time-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      .time-input:focus {
+        border-color: var(--accent);
+      }
+
+      .time-separator {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--text-muted);
+        padding-top: 20px;
+      }
+
+      /* Progress Ring for Countdown */
+      .progress-ring-wrapper {
+        display: none;
+        justify-content: center;
+        margin-bottom: 24px;
+      }
+
+      .progress-ring-wrapper.visible {
+        display: flex;
+      }
+
+      .progress-ring-container {
+        position: relative;
+        width: 280px;
+        height: 280px;
+      }
+
+      .progress-ring {
+        transform: rotate(-90deg);
+      }
+
+      .progress-ring-bg {
+        fill: none;
+        stroke: var(--bg-input);
+        stroke-width: 6;
+      }
+
+      .progress-ring-fill {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 6;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
+      }
+
+      .progress-ring-fill.danger {
+        stroke: var(--danger);
+      }
+
+      .progress-time-inner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+      }
+
+      .progress-time-inner .time-display {
+        font-size: clamp(40px, 8vw, 64px);
+      }
+
+      /* Controls */
+      .controls {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      .btn {
+        padding: 14px 32px;
+        border: none;
+        border-radius: var(--radius);
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 120px;
+        justify-content: center;
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        color: var(--bg);
+      }
+
+      .btn-primary:hover {
+        background: var(--accent-hover);
+        transform: translateY(-1px);
+      }
+
+      .btn-danger {
+        background: var(--danger);
+        color: var(--bg);
+      }
+
+      .btn-danger:hover {
+        background: var(--danger-hover);
+        transform: translateY(-1px);
+      }
+
+      .btn-ghost {
+        background: var(--bg-input);
+        color: var(--text);
+        border: 2px solid var(--border);
+      }
+
+      .btn-ghost:hover {
+        border-color: var(--text-muted);
+        transform: translateY(-1px);
+      }
+
+      .btn:active {
+        transform: translateY(0) scale(0.98);
+      }
+
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none !important;
+      }
+
+      /* Quick Presets */
+      .presets {
+        display: none;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 24px;
+      }
+
+      .presets.visible {
+        display: flex;
+      }
+
+      .preset-btn {
+        padding: 8px 16px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text-muted);
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .preset-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(56, 189, 248, 0.1);
+      }
+
+      /* Laps */
+      .laps-section {
+        display: none;
+        margin-top: 16px;
+      }
+
+      .laps-section.visible {
+        display: block;
+      }
+
+      .laps-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 16px;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 600;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .laps-list {
+        max-height: 180px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+
+      .lap-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 16px;
+        font-size: 14px;
+        border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+      }
+
+      .lap-item .lap-num {
+        color: var(--text-muted);
+      }
+
+      .lap-item .lap-time {
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+      }
+
+      .lap-item .lap-diff {
+        color: var(--accent);
+        font-variant-numeric: tabular-nums;
+        font-size: 13px;
+      }
+
+      /* Fullscreen hint */
+      .fullscreen-hint {
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 12px;
+        opacity: 0.6;
+      }
+
+      /* Countdown finished overlay */
+      .finished-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.9);
+        z-index: 100;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .finished-overlay.visible {
+        display: flex;
+      }
+
+      .finished-text {
+        font-size: clamp(32px, 8vw, 56px);
+        font-weight: 700;
+        color: var(--danger);
+        animation: pulse 0.8s ease-in-out infinite;
+      }
+
+      .finished-sub {
+        font-size: 20px;
+        color: var(--text-muted);
+      }
+
+      /* PWA Install Banner */
+      .pwa-install-banner {
+        display: none;
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px 20px;
+        max-width: 340px;
+        width: calc(100% - 32px);
+        z-index: 200;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        animation: slideUp 0.3s ease;
+      }
+
+      .pwa-install-banner.visible {
+        display: block;
+      }
+
+      @keyframes slideUp {
+        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+      }
+
+      .pwa-install-banner p {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        line-height: 1.5;
+      }
+
+      .pwa-install-banner .banner-btns {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .pwa-install-banner .btn-install {
+        background: var(--accent);
+        color: var(--bg);
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .pwa-install-banner .btn-install:hover {
+        background: var(--accent-hover);
+      }
+
+      .pwa-install-banner .btn-dismiss {
+        background: transparent;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: color 0.2s;
+      }
+
+      .pwa-install-banner .btn-dismiss:hover {
+        color: var(--text);
+      }
+
+      /* PWA Update Toast */
+      .pwa-update-toast {
+        display: none;
+        position: fixed;
+        top: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg-card);
+        border: 1px solid var(--accent);
+        border-radius: 12px;
+        padding: 14px 20px;
+        max-width: 340px;
+        width: calc(100% - 32px);
+        z-index: 200;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        animation: slideDown 0.3s ease;
+      }
+
+      .pwa-update-toast.visible {
+        display: block;
+      }
+
+      @keyframes slideDown {
+        from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+      }
+
+      .pwa-update-toast p {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+      }
+
+      .pwa-update-toast .banner-btns {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .pwa-update-toast .btn-reload {
+        background: var(--accent);
+        color: var(--bg);
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .pwa-update-toast .btn-reload:hover {
+        background: var(--accent-hover);
+      }
+
+      .pwa-update-toast .btn-dismiss {
+        background: transparent;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: color 0.2s;
+      }
+
+      .pwa-update-toast .btn-dismiss:hover {
+        color: var(--text);
+      }
+
+      /* Responsive */
+      @media (max-width: 480px) {
+        .container { padding: 16px; }
+        .btn { padding: 12px 20px; min-width: 100px; font-size: 14px; }
+        .time-input { width: 64px; font-size: 22px; padding: 10px 6px; }
+        .progress-ring-container { width: 220px; height: 220px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Mode Tabs -->
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="stopwatch" onclick="switchMode('stopwatch')">正计时</button>
+        <button class="mode-tab" data-mode="countdown" onclick="switchMode('countdown')">倒计时</button>
+      </div>
+
+      <!-- Countdown Setup -->
+      <div class="countdown-setup" id="countdownSetup">
+        <div class="time-input-group">
+          <label>时</label>
+          <input type="number" class="time-input" id="inputHours" min="0" max="99" value="0" />
+        </div>
+        <span class="time-separator">:</span>
+        <div class="time-input-group">
+          <label>分</label>
+          <input type="number" class="time-input" id="inputMinutes" min="0" max="59" value="5" />
+        </div>
+        <span class="time-separator">:</span>
+        <div class="time-input-group">
+          <label>秒</label>
+          <input type="number" class="time-input" id="inputSeconds" min="0" max="59" value="0" />
+        </div>
+      </div>
+
+      <!-- Quick Presets (Countdown) -->
+      <div class="presets" id="presets">
+        <button class="preset-btn" onclick="setPreset(1, 0)">1 分钟</button>
+        <button class="preset-btn" onclick="setPreset(3, 0)">3 分钟</button>
+        <button class="preset-btn" onclick="setPreset(5, 0)">5 分钟</button>
+        <button class="preset-btn" onclick="setPreset(10, 0)">10 分钟</button>
+        <button class="preset-btn" onclick="setPreset(15, 0)">15 分钟</button>
+        <button class="preset-btn" onclick="setPreset(0, 30)">30 秒</button>
+      </div>
+
+      <!-- Stopwatch Display -->
+      <div class="time-display-wrapper" id="stopwatchDisplay">
+        <div class="time-display" id="stopwatchTime">00:00:00</div>
+        <div class="time-label">时 : 分 : 秒</div>
+      </div>
+
+      <!-- Countdown Progress Ring -->
+      <div class="progress-ring-wrapper" id="countdownDisplay">
+        <div class="progress-ring-container">
+          <svg class="progress-ring" width="280" height="280" viewBox="0 0 280 280">
+            <circle class="progress-ring-bg" cx="140" cy="140" r="130" />
+            <circle class="progress-ring-fill" id="progressFill" cx="140" cy="140" r="130"
+              stroke-dasharray="816.81" stroke-dashoffset="0" />
+          </svg>
+          <div class="progress-time-inner">
+            <div class="time-display" id="countdownTime">00:05:00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls" id="controls">
+        <button class="btn btn-primary" id="btnStart" onclick="startTimer()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+          开始
+        </button>
+        <button class="btn btn-ghost" id="btnLap" onclick="recordLap()" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          计次
+        </button>
+        <button class="btn btn-ghost" id="btnPause" onclick="pauseTimer()" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          暂停
+        </button>
+        <button class="btn btn-ghost" id="btnReset" onclick="resetTimer()" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          重置
+        </button>
+      </div>
+
+      <!-- Laps (Stopwatch) -->
+      <div class="laps-section" id="lapsSection">
+        <div class="laps-header">
+          <span>计次</span>
+          <span>间隔</span>
+          <span>累计</span>
+        </div>
+        <div class="laps-list" id="lapsList"></div>
+      </div>
+
+      <div class="fullscreen-hint">按 F 可切换全屏 | 按 Space 开始/暂停</div>
+    </div>
+
+    <!-- Finished Overlay -->
+    <div class="finished-overlay" id="finishedOverlay">
+      <div class="finished-text">时间到</div>
+      <div class="finished-sub" id="finishedSub">00:05:00 已结束</div>
+      <button class="btn btn-danger" onclick="dismissFinished()">确定</button>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div class="pwa-install-banner" id="pwaInstallBanner">
+      <p>添加到主屏幕，无需下载即可像 App 一样快速打开</p>
+      <div class="banner-btns">
+        <button class="btn-dismiss" onclick="dismissPWAInstall()">暂不</button>
+        <button class="btn-install" onclick="installPWA()">安装</button>
+      </div>
+    </div>
+
+    <!-- PWA Update Toast -->
+    <div class="pwa-update-toast" id="pwaUpdateToast">
+      <p>有新版本可用，更新以获得最佳体验</p>
+      <div class="banner-btns">
+        <button class="btn-dismiss" onclick="dismissPWAUpdate()">下次再说</button>
+        <button class="btn-reload" onclick="reloadForUpdate()">立即更新</button>
+      </div>
+    </div>
+
+    <script>
+      // --- State ---
+      let currentMode = 'stopwatch'; // 'stopwatch' | 'countdown'
+      let timerState = 'idle'; // 'idle' | 'running' | 'paused'
+      let elapsedMs = 0;
+      let startTimestamp = 0;
+      let pausedAt = 0;
+      let animFrameId = null;
+      let laps = [];
+      let lastLapMs = 0;
+      let countdownTotalMs = 5 * 60 * 1000; // default 5 min
+      let audioCtx = null;
+
+      // --- DOM ---
+      const stopwatchTime = document.getElementById('stopwatchTime');
+      const countdownTime = document.getElementById('countdownTime');
+      const stopwatchDisplay = document.getElementById('stopwatchDisplay');
+      const countdownDisplay = document.getElementById('countdownDisplay');
+      const countdownSetup = document.getElementById('countdownSetup');
+      const presetsEl = document.getElementById('presets');
+      const btnStart = document.getElementById('btnStart');
+      const btnPause = document.getElementById('btnPause');
+      const btnReset = document.getElementById('btnReset');
+      const btnLap = document.getElementById('btnLap');
+      const progressFill = document.getElementById('progressFill');
+      const lapsSection = document.getElementById('lapsSection');
+      const lapsList = document.getElementById('lapsList');
+      const finishedOverlay = document.getElementById('finishedOverlay');
+      const finishedSub = document.getElementById('finishedSub');
+
+      const CIRCUMFERENCE = 2 * Math.PI * 130; // ~816.81
+
+      // --- PWA Install Banner ---
+      let deferredPrompt = null;
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        // 延迟显示，避免打扰首次使用
+        setTimeout(() => {
+          const dismissed = localStorage.getItem('pwa-install-dismissed');
+          if (!dismissed) {
+            document.getElementById('pwaInstallBanner').classList.add('visible');
+          }
+        }, 5000);
+      });
+
+      window.addEventListener('appinstalled', () => {
+        document.getElementById('pwaInstallBanner').classList.remove('visible');
+        deferredPrompt = null;
+      });
+
+      function installPWA() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choice) => {
+          if (choice.outcome === 'accepted') {
+            document.getElementById('pwaInstallBanner').classList.remove('visible');
+          }
+          deferredPrompt = null;
+        });
+      }
+
+      function dismissPWAInstall() {
+        document.getElementById('pwaInstallBanner').classList.remove('visible');
+        localStorage.setItem('pwa-install-dismissed', '1');
+      }
+
+      // --- PWA Update ---
+      let swUpdate = false;
+
+      window.addEventListener('load', () => {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('sw.js').then((reg) => {
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  swUpdate = true;
+                  document.getElementById('pwaUpdateToast').classList.add('visible');
+                }
+              });
+            });
+          });
+
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (swUpdate) location.reload();
+          });
+        }
+      });
+
+      function reloadForUpdate() {
+        document.getElementById('pwaUpdateToast').classList.remove('visible');
+        location.reload();
+      }
+
+      function dismissPWAUpdate() {
+        document.getElementById('pwaUpdateToast').classList.remove('visible');
+      }
+
+      // --- Format ---
+      function formatTime(ms) {
+        const totalSec = Math.floor(ms / 1000);
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        return `${pad(h)}:${pad(m)}:${pad(s)}`;
+      }
+
+      function pad(n) {
+        return n.toString().padStart(2, '0');
+      }
+
+      // --- Mode Switch ---
+      function switchMode(mode) {
+        if (timerState !== 'idle') resetTimer();
+        currentMode = mode;
+        document.querySelectorAll('.mode-tab').forEach(t => {
+          t.classList.toggle('active', t.dataset.mode === mode);
+        });
+
+        const isCountdown = mode === 'countdown';
+        stopwatchDisplay.style.display = isCountdown ? 'none' : '';
+        countdownDisplay.classList.toggle('visible', isCountdown);
+        countdownSetup.classList.toggle('visible', isCountdown && timerState === 'idle');
+        presetsEl.classList.toggle('visible', isCountdown && timerState === 'idle');
+        btnLap.style.display = (!isCountdown && timerState !== 'idle') ? '' : 'none';
+
+        if (isCountdown) {
+          updateCountdownDisplay();
+        } else {
+          stopwatchTime.textContent = '00:00:00';
+          stopwatchTime.classList.remove('danger', 'paused');
+        }
+      }
+
+      // --- Countdown Setup ---
+      function getInputMs() {
+        const h = parseInt(document.getElementById('inputHours').value) || 0;
+        const m = parseInt(document.getElementById('inputMinutes').value) || 0;
+        const s = parseInt(document.getElementById('inputSeconds').value) || 0;
+        return (h * 3600 + m * 60 + s) * 1000;
+      }
+
+      function setPreset(minutes, seconds) {
+        document.getElementById('inputHours').value = 0;
+        document.getElementById('inputMinutes').value = minutes;
+        document.getElementById('inputSeconds').value = seconds;
+        updateCountdownDisplay();
+      }
+
+      function updateCountdownDisplay() {
+        const ms = getInputMs();
+        countdownTime.textContent = formatTime(ms);
+        countdownTime.classList.remove('danger', 'paused');
+        countdownTotalMs = ms;
+        // Reset ring
+        progressFill.style.strokeDashoffset = '0';
+        progressFill.classList.remove('danger');
+      }
+
+      // Input change listeners
+      document.querySelectorAll('.time-input').forEach(input => {
+        input.addEventListener('input', updateCountdownDisplay);
+        input.addEventListener('focus', function() { this.select(); });
+      });
+
+      // --- Timer Control ---
+      function startTimer() {
+        if (currentMode === 'countdown') {
+          countdownTotalMs = getInputMs();
+          if (countdownTotalMs <= 0) return;
+        }
+
+        if (timerState === 'idle') {
+          elapsedMs = 0;
+          lastLapMs = 0;
+          laps = [];
+          renderLaps();
+          startTimestamp = performance.now();
+        } else if (timerState === 'paused') {
+          // Resume: adjust startTimestamp so elapsedMs stays correct
+          startTimestamp = performance.now() - elapsedMs;
+        }
+
+        timerState = 'running';
+        updateButtons();
+        countdownSetup.classList.remove('visible');
+        presetsEl.classList.remove('visible');
+        tick();
+      }
+
+      function pauseTimer() {
+        timerState = 'paused';
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+        updateButtons();
+
+        if (currentMode === 'stopwatch') {
+          stopwatchTime.classList.add('paused');
+        } else {
+          countdownTime.classList.add('paused');
+        }
+      }
+
+      function resetTimer() {
+        timerState = 'idle';
+        elapsedMs = 0;
+        pausedAt = 0;
+        lastLapMs = 0;
+        laps = [];
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+        renderLaps();
+
+        if (currentMode === 'stopwatch') {
+          stopwatchTime.textContent = '00:00:00';
+          stopwatchTime.classList.remove('danger', 'paused');
+        } else {
+          updateCountdownDisplay();
+          countdownSetup.classList.add('visible');
+          presetsEl.classList.add('visible');
+        }
+
+        updateButtons();
+        finishedOverlay.classList.remove('visible');
+      }
+
+      function recordLap() {
+        if (currentMode !== 'stopwatch' || timerState !== 'running') return;
+        const diff = elapsedMs - lastLapMs;
+        laps.unshift({ num: laps.length + 1, diff, total: elapsedMs });
+        lastLapMs = elapsedMs;
+        renderLaps();
+      }
+
+      // --- Tick ---
+      function tick() {
+        if (timerState !== 'running') return;
+
+        elapsedMs = performance.now() - startTimestamp;
+
+        if (currentMode === 'stopwatch') {
+          stopwatchTime.textContent = formatTime(elapsedMs);
+          stopwatchTime.classList.remove('paused');
+        } else {
+          const remaining = Math.max(0, countdownTotalMs - elapsedMs);
+          countdownTime.textContent = formatTime(remaining);
+          countdownTime.classList.remove('paused');
+
+          // Progress ring
+          const progress = elapsedMs / countdownTotalMs;
+          const offset = CIRCUMFERENCE * Math.min(progress, 1);
+          progressFill.style.strokeDashoffset = offset;
+
+          // Danger state: last 10 seconds
+          if (remaining <= 10000 && remaining > 0) {
+            countdownTime.classList.add('danger');
+            progressFill.classList.add('danger');
+          } else {
+            countdownTime.classList.remove('danger');
+            progressFill.classList.remove('danger');
+          }
+
+          // Finished
+          if (remaining <= 0) {
+            timerState = 'idle';
+            countdownTime.classList.remove('danger');
+            countdownTime.textContent = '00:00:00';
+            playAlarm();
+            showFinished();
+            updateButtons();
+            countdownSetup.classList.add('visible');
+            presetsEl.classList.add('visible');
+            return;
+          }
+        }
+
+        animFrameId = requestAnimationFrame(tick);
+      }
+
+      // --- Buttons ---
+      function updateButtons() {
+        const isIdle = timerState === 'idle';
+        const isRunning = timerState === 'running';
+        const isPaused = timerState === 'paused';
+
+        btnStart.style.display = (isIdle || isPaused) ? '' : 'none';
+        btnStart.innerHTML = isPaused
+          ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> 继续'
+          : '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> 开始';
+
+        btnPause.style.display = isRunning ? '' : 'none';
+        btnReset.style.display = (!isIdle) ? '' : 'none';
+        btnLap.style.display = (currentMode === 'stopwatch' && isRunning) ? '' : 'none';
+        lapsSection.classList.toggle('visible', currentMode === 'stopwatch' && laps.length > 0);
+      }
+
+      // --- Laps Render ---
+      function renderLaps() {
+        if (!laps.length) {
+          lapsSection.classList.remove('visible');
+          return;
+        }
+        lapsSection.classList.add('visible');
+        lapsList.innerHTML = laps.map(lap => `
+          <div class="lap-item">
+            <span class="lap-num">#${lap.num}</span>
+            <span class="lap-diff">${formatTime(lap.diff)}</span>
+            <span class="lap-time">${formatTime(lap.total)}</span>
+          </div>
+        `).join('');
+      }
+
+      // --- Alarm Sound (Web Audio API, offline) ---
+      function playAlarm() {
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const times = [0, 0.25, 0.5, 0.75, 1.0, 1.25];
+          times.forEach(t => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = 880;
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime + t);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + t + 0.15);
+            osc.start(audioCtx.currentTime + t);
+            osc.stop(audioCtx.currentTime + t + 0.2);
+          });
+        } catch (e) {
+          // Audio not available, silent fallback
+        }
+      }
+
+      // --- Finished Overlay ---
+      function showFinished() {
+        finishedSub.textContent = formatTime(countdownTotalMs) + ' 已结束';
+        finishedOverlay.classList.add('visible');
+      }
+
+      function dismissFinished() {
+        finishedOverlay.classList.remove('visible');
+      }
+
+      // --- Keyboard Shortcuts ---
+      document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'INPUT') return;
+
+        if (e.code === 'Space') {
+          e.preventDefault();
+          if (timerState === 'running') pauseTimer();
+          else startTimer();
+        }
+
+        if (e.code === 'KeyR') {
+          e.preventDefault();
+          resetTimer();
+        }
+
+        if (e.code === 'KeyF') {
+          e.preventDefault();
+          toggleFullscreen();
+        }
+
+        if (e.code === 'KeyL' && currentMode === 'stopwatch' && timerState === 'running') {
+          e.preventDefault();
+          recordLap();
+        }
+      });
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+
+      // --- Init ---
+      switchMode('stopwatch');
+    </script>
+    <div id="app-credits" style="position:fixed;bottom:10px;right:16px;font-size:11px;color:#475569;font-family:system-ui,-apple-system,sans-serif;z-index:9999;pointer-events:none;user-select:none;opacity:0.6;">— 道工作室</div>
+  </body>
+</html>
