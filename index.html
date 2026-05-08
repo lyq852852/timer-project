@@ -246,6 +246,116 @@
         font-size: clamp(40px, 8vw, 64px);
       }
 
+      /* Analog Clock */
+      .analog-clock {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: var(--bg-card);
+        border: 3px solid var(--border);
+        position: relative;
+        margin: 0 auto 16px;
+        display: none;
+      }
+      .analog-clock.active {
+        display: block;
+      }
+      .clock-face {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      .clock-tick {
+        position: absolute;
+        width: 2px;
+        height: 8px;
+        background: var(--text-muted);
+        left: 50%;
+        transform-origin: center bottom;
+        transform: translateX(-50%);
+        top: 4px;
+      }
+      .clock-tick.major {
+        width: 3px;
+        height: 12px;
+        background: var(--text);
+      }
+      .clock-hand {
+        position: absolute;
+        bottom: 50%;
+        left: 50%;
+        transform-origin: center bottom;
+        border-radius: 2px;
+        transition: transform 0.1s cubic-bezier(0.4, 2.3, 0.3, 1);
+      }
+      .clock-hand.hour {
+        width: 4px;
+        height: 50px;
+        background: var(--text);
+        margin-left: -2px;
+      }
+      .clock-hand.minute {
+        width: 3px;
+        height: 70px;
+        background: var(--text);
+        margin-left: -1.5px;
+      }
+      .clock-hand.second {
+        width: 2px;
+        height: 80px;
+        background: var(--accent);
+        margin-left: -1px;
+      }
+      .clock-center {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: var(--accent);
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+      }
+      .display-toggle {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .display-toggle button {
+        padding: 6px 16px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-muted);
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.2s;
+      }
+      .display-toggle button.active {
+        background: var(--accent);
+        color: var(--bg);
+        border-color: var(--accent);
+      }
+      .display-toggle button:hover:not(.active) {
+        color: var(--text);
+        border-color: var(--text);
+      }
+      .time-display-wrapper .analog-clock {
+        margin-bottom: 8px;
+      }
+      .progress-ring-wrapper .analog-clock {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 5;
+      }
+      .progress-ring-wrapper .analog-clock.active ~ .progress-time-inner {
+        display: none;
+      }
+
       /* Controls */
       .controls {
         display: flex;
@@ -684,12 +794,28 @@
 
       <!-- Stopwatch Display -->
       <div class="time-display-wrapper" id="stopwatchDisplay">
+        <div class="display-toggle">
+          <button class="active" onclick="setDisplayMode('digital', 'stopwatch')" id="btnDigitalStopwatch">数字</button>
+          <button onclick="setDisplayMode('analog', 'stopwatch')" id="btnAnalogStopwatch">表盘</button>
+        </div>
         <div class="time-display" id="stopwatchTime">00:00:00</div>
-        <div class="time-label">时 : 分 : 秒</div>
+        <div class="analog-clock" id="stopwatchAnalog">
+          <div class="clock-face">
+            <div class="clock-center"></div>
+            <div class="clock-hand hour" id="stopwatchHourHand"></div>
+            <div class="clock-hand minute" id="stopwatchMinuteHand"></div>
+            <div class="clock-hand second" id="stopwatchSecondHand"></div>
+          </div>
+        </div>
+        <div class="time-label" id="stopwatchLabel">时 : 分 : 秒</div>
       </div>
 
       <!-- Countdown Progress Ring -->
       <div class="progress-ring-wrapper" id="countdownDisplay">
+        <div class="display-toggle">
+          <button class="active" onclick="setDisplayMode('digital', 'countdown')" id="btnDigitalCountdown">数字</button>
+          <button onclick="setDisplayMode('analog', 'countdown')" id="btnAnalogCountdown">表盘</button>
+        </div>
         <div class="progress-ring-container">
           <svg class="progress-ring" width="280" height="280" viewBox="0 0 280 280">
             <circle class="progress-ring-bg" cx="140" cy="140" r="130" />
@@ -698,6 +824,14 @@
           </svg>
           <div class="progress-time-inner">
             <div class="time-display" id="countdownTime">00:05:00</div>
+          </div>
+          <div class="analog-clock" id="countdownAnalog">
+            <div class="clock-face">
+              <div class="clock-center"></div>
+              <div class="clock-hand hour" id="countdownHourHand"></div>
+              <div class="clock-hand minute" id="countdownMinuteHand"></div>
+              <div class="clock-hand second" id="countdownSecondHand"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -969,6 +1103,9 @@
         if (currentMode === 'stopwatch') {
           stopwatchTime.textContent = formatTime(elapsedMs);
           stopwatchTime.classList.remove('paused');
+          if (displayModes.stopwatch === 'analog') {
+            updateAnalogClock('stopwatch', elapsedMs);
+          }
         } else {
           const remaining = Math.max(0, countdownTotalMs - elapsedMs);
           countdownTime.textContent = formatTime(remaining);
@@ -986,6 +1123,10 @@
           } else {
             countdownTime.classList.remove('danger');
             progressFill.classList.remove('danger');
+          }
+          if (displayModes.countdown === 'analog') {
+            updateAnalogClock('countdown', countdownTotalMs - remaining);
+          }
           }
 
           // Finished
@@ -1142,8 +1283,77 @@
         localStorage.setItem('installBannerDismissed', 'true');
       }
 
+      // --- Analog Clock ---
+      const displayModes = {
+        stopwatch: localStorage.getItem('displayMode_stopwatch') || 'digital',
+        countdown: localStorage.getItem('displayMode_countdown') || 'digital'
+      };
+
+      function initClockTicks() {
+        ['stopwatchAnalog', 'countdownAnalog'].forEach(id => {
+          const clock = document.getElementById(id);
+          if (!clock) return;
+          const face = clock.querySelector('.clock-face');
+          for (let i = 0; i < 12; i++) {
+            const tick = document.createElement('div');
+            tick.className = i % 3 === 0 ? 'clock-tick major' : 'clock-tick';
+            tick.style.transform = `translateX(-50%) rotate(${i * 30}deg)`;
+            tick.style.transformOrigin = 'center 96px';
+            face.appendChild(tick);
+          }
+        });
+      }
+
+      function updateAnalogClock(type, totalMs) {
+        const hours = Math.floor(totalMs / 3600000) % 12;
+        const minutes = Math.floor((totalMs % 3600000) / 60000);
+        const seconds = Math.floor((totalMs % 60000) / 1000);
+        const ms = totalMs % 1000;
+
+        const hourDeg = (hours * 30) + (minutes * 0.5);
+        const minuteDeg = (minutes * 6) + (seconds * 0.1);
+        const secondDeg = (seconds * 6) + (ms * 0.006);
+
+        document.getElementById(`${type}HourHand`).style.transform = `rotate(${hourDeg}deg)`;
+        document.getElementById(`${type}MinuteHand`).style.transform = `rotate(${minuteDeg}deg)`;
+        document.getElementById(`${type}SecondHand`).style.transform = `rotate(${secondDeg}deg)`;
+      }
+
+      function setDisplayMode(mode, type) {
+        displayModes[type] = mode;
+        localStorage.setItem(`displayMode_${type}`, mode);
+
+        const digitalBtn = document.getElementById(`btnDigital${type.charAt(0).toUpperCase() + type.slice(1)}`);
+        const analogBtn = document.getElementById(`btnAnalog${type.charAt(0).toUpperCase() + type.slice(1)}`);
+        const digitalDisplay = type === 'stopwatch' ? document.getElementById('stopwatchTime') : document.getElementById('countdownTime');
+        const analogDisplay = document.getElementById(`${type}Analog`);
+        const label = type === 'stopwatch' ? document.getElementById('stopwatchLabel') : null;
+
+        if (mode === 'digital') {
+          digitalBtn.classList.add('active');
+          analogBtn.classList.remove('active');
+          digitalDisplay.style.display = 'block';
+          analogDisplay.classList.remove('active');
+          if (label) label.style.display = 'block';
+        } else {
+          digitalBtn.classList.remove('active');
+          analogBtn.classList.add('active');
+          digitalDisplay.style.display = 'none';
+          analogDisplay.classList.add('active');
+          if (label) label.style.display = 'none';
+          updateAnalogClock(type, type === 'stopwatch' ? elapsedMs : countdownTotalMs - countdownRemainingMs);
+        }
+      }
+
+      function applyDisplayMode(type) {
+        setDisplayMode(displayModes[type], type);
+      }
+
       // --- Init ---
+      initClockTicks();
       switchMode('stopwatch');
+      applyDisplayMode('stopwatch');
+      applyDisplayMode('countdown');
     </script>
     <div id="app-credits" style="position:fixed;bottom:10px;right:16px;font-size:11px;color:#475569;font-family:system-ui,-apple-system,sans-serif;z-index:9999;pointer-events:none;user-select:none;opacity:0.6;">— <span style="font-size:18px;font-family:'Noto Sans SC','Microsoft YaHei',sans-serif;">道</span>工作室</div>
   </body>
